@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Sortera</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body { width: 380px; padding: 12px; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 8px 0; }
+    #backlog { width: 100%; margin: 4px 0 10px; }
+    .item { border: 1px solid var(--border); border-radius: 8px; padding: 8px; margin-bottom: 8px; }
+    .item .title {
+      display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      text-decoration: none; color: var(--fg);
+    }
+    .item .title:hover { text-decoration: underline; }
+    .item .meta { margin: 2px 0 6px; }
+    .item .error { color: var(--danger); font-size: 12px; margin: 2px 0 6px; }
+    .item .controls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .item select { width: auto; flex: 1 1 80px; min-width: 0; padding: 3px 6px; font-size: 12px; }
+    #review { max-height: 380px; overflow-y: auto; }
+    footer { margin-top: 8px; text-align: right; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Sortera</h1>
+    <label class="switch">
+      <input type="checkbox" id="enabled">
+      <span class="track"></span>
+      <span id="enabledLabel">On</span>
+    </label>
+  </header>
+
+  <div id="error" class="banner error hidden">
+    <div id="errorText"></div>
+    <button type="button" id="resume" class="small" style="margin-top:6px">Retry now</button>
+  </div>
+  <div id="setup" class="banner error hidden">No watched folder yet. Open settings to pick one.</div>
+
+  <div class="bar">
+    <span id="counts" class="muted"></span>
+  </div>
+  <button type="button" id="backlog">Classify everything currently in the watched folder</button>
+  <div id="notice" class="muted"></div>
+
+  <h2 id="reviewHeading">Needs review</h2>
+  <div id="review"></div>
+
+  <footer><a href="#" id="openOptions">Settings</a></footer>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

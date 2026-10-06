@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Sortera settings</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    main { max-width: 720px; margin: 0 auto; padding: 24px 16px 64px; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    section { border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+    .field { margin-bottom: 12px; }
+    .field > label { display: block; font-weight: 600; margin-bottom: 4px; }
+    .row { display: flex; gap: 8px; align-items: center; }
+    .checkbox { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px; }
+    .checkbox input { margin-top: 3px; }
+    .cat-row { display: grid; grid-template-columns: 160px 1fr auto; gap: 8px; margin-bottom: 6px; }
+    .cat-row input[readonly] { opacity: 0.7; }
+    .rule-row { display: grid; grid-template-columns: 1fr 200px auto; gap: 8px; margin-bottom: 6px; }
+    .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    #threshold { width: 200px; }
+    @media (max-width: 520px) { .cat-row, .rule-row { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Sortera settings</h1>
+    <label class="switch">
+      <input type="checkbox" id="enabled">
+      <span class="track"></span>
+      <span>Enabled</span>
+    </label>
+  </header>
+
+  <div id="statusError" class="banner error hidden"></div>
+
+  <section>
+    <h2>LLM provider</h2>
+    <div class="field">
+      <label for="provider">Provider</label>
+      <select id="provider"></select>
+    </div>
+    <div class="field" id="baseUrlField">
+      <label for="baseUrl">Base URL</label>
+      <input type="url" id="baseUrl" placeholder="http://localhost:11434/v1">
+      <div class="muted">OpenAI-compatible endpoint; Sortera calls <code>{base URL}/chat/completions</code>.</div>
+    </div>
+    <div class="field">
+      <label for="apiKey">API key <span id="keyOptional" class="muted">(optional for local models)</span></label>
+      <div class="row">
+        <input type="password" id="apiKey" autocomplete="off" spellcheck="false">
+        <button type="button" id="toggleKey" class="small">Show</button>
+      </div>
+      <div class="muted">Stored only on this device (chrome.storage.local), never synced.</div>
+    </div>
+    <div class="field">
+      <label for="model">Model</label>
+      <input type="text" id="model" spellcheck="false">
+    </div>
+    <div class="actions">
+      <button type="button" id="test">Test connection</button>
+      <span id="testResult" class="muted"></span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Watched folder</h2>
+    <div class="field">
+      <label for="folder">Inbox folder</label>
+      <select id="folder"></select>
+      <div class="muted">New bookmarks dropped here get sorted into category subfolders inside it.</div>
+    </div>
+    <label class="checkbox">
+      <input type="checkbox" id="watchSubfolders">
+      <span>Also watch its direct subfolders (category folders are always skipped)</span>
+    </label>
+  </section>
+
+  <section>
+    <h2>Categories</h2>
+    <p class="muted">The model must pick one of these. Descriptions go into the prompt, so be specific.
+      "other" is the fallback and can't be removed.</p>
+    <div id="categories"></div>
+    <div class="actions">
+      <button type="button" id="addCategory" class="small">+ Add category</button>
+      <button type="button" id="resetCategories" class="small">Restore default categories</button>
+      <span id="categoryCount" class="muted"></span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Domain rules</h2>
+    <p class="muted">Bookmarks on these domains (or their subdomains) skip the page fetch and the LLM and go straight
+      to the chosen category. Handy for sites behind a login.</p>
+    <div id="rules"></div>
+    <div class="actions">
+      <button type="button" id="addRule" class="small">+ Add rule</button>
+      <button type="button" id="resetRules" class="small">Restore default rules</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Behaviour</h2>
+    <div class="field">
+      <label for="threshold">Confidence threshold: <span id="thresholdValue"></span></label>
+      <input type="range" id="threshold" min="0" max="1" step="0.05">
+      <div class="muted">Below this, the bookmark stays in the inbox and is listed for review in the popup.</div>
+    </div>
+    <label class="checkbox">
+      <input type="checkbox" id="sendPageContent">
+      <span>Fetch the page and send a short text snippet to the LLM.<br>
+        <span class="muted">Off = only the title and URL are sent. On requires permission to read all sites
+          (asked when you save). Pages are fetched without your cookies. Local links (IP addresses,
+          localhost, .local/.lan hosts) are never fetched.</span></span>
+    </label>
+  </section>
+
+  <div class="actions">
+    <button type="button" id="save" class="primary">Save settings</button>
+    <span id="saveResult"></span>
+  </div>
+</main>
+<script type="module" src="options.js"></script>
+</body>
+</html>

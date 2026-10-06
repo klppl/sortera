@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Sortera",
+  "version": "0.1.0",
+  "description": "Automatically sorts bookmarks dropped into an inbox folder into category folders, using an LLM (bring your own key).",
+  "minimum_chrome_version": "116",
+  "permissions": ["bookmarks", "storage", "alarms"],
+  "host_permissions": [
+    "https://api.anthropic.com/*",
+    "https://api.openai.com/*"
+  ],
+  "optional_host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Sortera",
+    "default_popup": "popup.html"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  }
+}
