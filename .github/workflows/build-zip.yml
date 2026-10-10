@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
-      ZIP: sortera-latest.zip
+      ZIP_NAME: sortera-latest.zip # not "ZIP": zip reads that variable as extra options
     steps:
       - uses: actions/checkout@v4
 
@@ -34,8 +34,8 @@ jobs:
           mkdir -p build/sortera
           cp -r manifest.json background.js popup.html popup.js options.html options.js styles.css LICENSE lib build/sortera/
           mkdir -p build/sortera/icons && cp icons/*.png build/sortera/icons/
-          (cd build && zip -qr -X "../$ZIP" sortera)
-          unzip -l "$ZIP"
+          (cd build && zip -qr -X "../$ZIP_NAME" sortera)
+          unzip -l "$ZIP_NAME"
 
       - name: Point the "latest" tag at this commit
         run: |
@@ -44,7 +44,7 @@ jobs:
 
       - name: Publish to the "latest" release
         run: |
-          notes="Download **$ZIP**, unzip it, then open \`chrome://extensions\`, turn on Developer mode, click **Load unpacked** and pick the \`sortera\` folder. See the [README](https://github.com/${{ github.repository }}#install) for details.
+          notes="Download **$ZIP_NAME**, unzip it, then open \`chrome://extensions\`, turn on Developer mode, click **Load unpacked** and pick the \`sortera\` folder. See the [README](https://github.com/${{ github.repository }}#install) for details.
 
           Built from ${GITHUB_SHA::7} on $(date -u +%Y-%m-%d)."
           if gh release view latest >/dev/null 2>&1; then
@@ -52,4 +52,4 @@ jobs:
           else
             gh release create latest --title "Sortera (latest)" --notes "$notes" --latest
           fi
-          gh release upload latest "$ZIP" --clobber
+          gh release upload latest "$ZIP_NAME" --clobber
