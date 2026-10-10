@@ -18,8 +18,9 @@ lib/bookmarks.js   watched-folder logic, category folder lookup/creation
 lib/urls.js        domain rules, and the "never fetch local/IP links" check
 lib/settings.js    defaults, default categories and domain rules, storage helpers
 options.html/js    settings page
-popup.html/js      on/off, review list, backlog button
+popup.html/js      on/off, review list, backlog and recheck buttons
 styles.css         shared styles (light/dark)
+icons/             toolbar/store icons; icon.svg and icon-small.svg (16/32 px) are the sources
 ```
 
 ## Load it unpacked
@@ -36,7 +37,8 @@ styles.css         shared styles (light/dark)
 ## Set up and test
 
 1. In settings, pick a provider, paste your API key, keep the default model
-   (`claude-haiku-4-5` / `gpt-4.1-mini`) and click **Test connection**.
+   (`claude-haiku-5-5` / `gpt-6-luna`) and click **Test connection**. The model dropdown lists the cheapest
+   current models for each provider; pick **Custom…** to type any other model id.
 2. Pick your inbox folder (e.g. `dropbox`) as the watched folder.
 3. Leave "Fetch the page…" on if you want better results. When you click **Save**, the browser asks
    for permission to read all sites. Decline it and Sortera uses title + URL only.
@@ -48,7 +50,7 @@ styles.css         shared styles (light/dark)
 
 ### Using Ollama (or another local model)
 
-Pick *Custom (OpenAI-compatible)*, base URL `http://localhost:11434/v1`, model e.g. `llama3.2`,
+Pick *Custom (OpenAI-compatible)*, base URL `http://localhost:11434/v1`, model e.g. `gemma4:e4b` or `llama3.2` (whatever you've pulled),
 no key needed. Ollama rejects requests from extension origins by default, so start it with:
 
 ```bash
@@ -83,6 +85,12 @@ OLLAMA_ORIGINS="chrome-extension://*" ollama serve
 - **Config errors** (401, 403, 404, 400, missing key) pause the queue and show a red `!` badge and a
   message, so a bad key doesn't burn requests. Saving settings or clicking *Retry now* resumes.
 - Transient failures that survive all retries land in the review list with an error and a **Retry** button.
+- **Recheck** (popup) queues bookmarks that already sit in category folders, all of them or one folder,
+  marked as rechecks. A recheck moves a bookmark only when the model is confident about a *different*
+  category (or a domain rule now points elsewhere). If it agrees with the current folder nothing happens;
+  an unsure disagreement goes to the review list with "Now in: <folder>". Bookmarks already waiting for
+  review are skipped. The button asks for a second click with the count first, since each bookmark is
+  one LLM call. **Clear queue** in the popup cancels a big run.
 
 ## Known limitations
 
@@ -102,11 +110,10 @@ OLLAMA_ORIGINS="chrome-extension://*" ollama serve
 - Model "confidence" is self-reported and not calibrated. Tune the threshold to taste.
 - The API key sits unencrypted in extension storage, which any code running in the extension can read.
   That's the standard BYOK trade-off in extensions.
-- No icons yet (the browser shows a letter placeholder).
 
 ## Sensible next steps
 
-- Add icons (16/48/128 PNG) and a nicer popup.
+- A nicer popup.
 - An "undo last move" / activity log in the popup.
 - Per-category custom folder paths (e.g. sort `recipes` into a folder outside the inbox).
 - An offscreen document with `DOMParser` (or Readability.js) for better text extraction.

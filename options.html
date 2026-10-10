@@ -54,8 +54,12 @@
       <div class="muted">Stored only on this device (chrome.storage.local), never synced.</div>
     </div>
     <div class="field">
-      <label for="model">Model</label>
-      <input type="text" id="model" spellcheck="false">
+      <label for="modelSelect">Model</label>
+      <select id="modelSelect"></select>
+      <input type="text" id="model" class="hidden" spellcheck="false" placeholder="any model id your provider offers"
+        aria-label="Custom model id" style="margin-top:6px">
+      <div class="muted">Prices are USD per 1M input / output tokens. One bookmark is roughly 1–2k input tokens,
+        so even the pricier models cost well under a cent each.</div>
     </div>
     <div class="actions">
       <button type="button" id="test">Test connection</button>

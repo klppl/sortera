@@ -15,7 +15,7 @@ const MAX_RECOMMENDED_CATEGORIES = 14;
 
 const $ = (id) => document.getElementById(id);
 
-let currentProvider = 'anthropic';
+const CUSTOM_MODEL = '__custom__'; // the "Custom…" entry in the model dropdown
 
 init();
 
@@ -29,10 +29,9 @@ async function init() {
 
   $('enabled').checked = settings.enabled;
   $('provider').value = settings.provider;
-  currentProvider = settings.provider;
   $('baseUrl').value = settings.baseUrl;
   $('apiKey').value = apiKey;
-  $('model').value = settings.model;
+  fillModelSelect(settings.provider, settings.model);
   $('watchSubfolders').checked = settings.watchSubfolders;
   $('threshold').value = settings.confidenceThreshold;
   $('sendPageContent').checked = settings.sendPageContent;
@@ -44,6 +43,7 @@ async function init() {
 
   $('enabled').addEventListener('change', () => saveSettings({ enabled: $('enabled').checked }));
   $('provider').addEventListener('change', onProviderChange);
+  $('modelSelect').addEventListener('change', onModelSelectChange);
   $('threshold').addEventListener('input', updateThresholdLabel);
   $('toggleKey').addEventListener('click', toggleKeyVisibility);
   $('addCategory').addEventListener('click', () => {
@@ -73,13 +73,32 @@ async function init() {
 
 function onProviderChange() {
   const next = $('provider').value;
-  const model = $('model').value.trim();
-  // Swap in the new provider's default model unless the user typed their own.
-  if (!model || model === PROVIDERS[currentProvider].defaultModel) {
-    $('model').value = PROVIDERS[next].defaultModel;
-  }
-  currentProvider = next;
+  // Model ids don't carry across providers, so start from the new one's default.
+  fillModelSelect(next, PROVIDERS[next].defaultModel);
   updateProviderFields();
+}
+
+// Dropdown of the provider's suggested models, plus "Custom…" for anything else.
+function fillModelSelect(provider, model) {
+  const select = $('modelSelect');
+  const presets = PROVIDERS[provider].models;
+  select.innerHTML = '';
+  for (const m of presets) select.append(new Option(m.label, m.id));
+  select.append(new Option('Custom…', CUSTOM_MODEL));
+  const isPreset = presets.some((m) => m.id === model);
+  select.value = isPreset ? model : CUSTOM_MODEL;
+  $('model').value = isPreset ? '' : model || '';
+  $('model').classList.toggle('hidden', isPreset);
+}
+
+function onModelSelectChange() {
+  const custom = $('modelSelect').value === CUSTOM_MODEL;
+  $('model').classList.toggle('hidden', !custom);
+  if (custom) $('model').focus();
+}
+
+function readModel() {
+  return $('modelSelect').value === CUSTOM_MODEL ? $('model').value.trim() : $('modelSelect').value;
 }
 
 function updateProviderFields() {
@@ -272,7 +291,7 @@ function readRules(categories) {
 function readForm() {
   const provider = $('provider').value;
   const baseUrl = $('baseUrl').value.trim();
-  const model = $('model').value.trim();
+  const model = readModel();
   if (!model) throw new Error('Enter a model name.');
   if (provider === 'custom') {
     try {

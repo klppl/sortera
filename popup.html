@@ -21,11 +21,19 @@
     .item select { width: auto; flex: 1 1 80px; min-width: 0; padding: 3px 6px; font-size: 12px; }
     #review { max-height: 380px; overflow-y: auto; }
     footer { margin-top: 8px; text-align: right; }
+    .brand { display: flex; align-items: center; gap: 8px; }
+    .brand img { width: 24px; height: 24px; }
+    .recheck { border-top: 1px solid var(--border); padding-top: 10px; margin: 10px 0; }
+    .recheck summary { font-weight: 600; cursor: pointer; }
+    .recheck .row { display: flex; gap: 6px; margin: 8px 0 4px; }
+    .recheck select { flex: 1; min-width: 0; }
+    .recheck button { white-space: nowrap; }
+    .linkish { background: none; border: none; padding: 0; color: var(--accent); font-size: 12px; cursor: pointer; }
   </style>
 </head>
 <body>
   <header>
-    <h1>Sortera</h1>
+    <div class="brand"><img src="icons/icon-48.png" alt=""><h1>Sortera</h1></div>
     <label class="switch">
       <input type="checkbox" id="enabled">
       <span class="track"></span>
@@ -41,12 +49,24 @@
 
   <div class="bar">
     <span id="counts" class="muted"></span>
+    <button type="button" id="clearQueue" class="linkish hidden">Clear queue</button>
   </div>
   <button type="button" id="backlog">Classify everything currently in the watched folder</button>
+
   <div id="notice" class="muted"></div>
 
   <h2 id="reviewHeading">Needs review</h2>
   <div id="review"></div>
+
+  <details class="recheck">
+    <summary>Recheck sorted bookmarks</summary>
+    <div class="row">
+      <select id="recheckFolder" aria-label="Folder to recheck"></select>
+      <button type="button" id="recheck">Recheck</button>
+    </div>
+    <div class="muted">Classifies them again with your current categories and model. A bookmark only
+      moves if the model is confident it belongs somewhere else; unsure ones show up for review.</div>
+  </details>
 
   <footer><a href="#" id="openOptions">Settings</a></footer>
 

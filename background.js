@@ -2,8 +2,10 @@
 //
 // The service worker can be suspended at any moment, so all state lives in
 // chrome.storage.local:
-//   queue        [{ id, notBefore, inFlight, titleWaits }]  bookmarks waiting to be classified
-//   review       { [bookmarkId]: { id, title, url, category, confidence, reason, error, at } }
+//   queue        [{ id, notBefore, inFlight, titleWaits, recheck }]  bookmarks waiting to be classified;
+//                recheck = it's already in a category folder and is being classified again
+//   review       { [bookmarkId]: { id, title, url, category, confidence, reason, error, from, at } }
+//                from = category folder it currently sits in (rechecks only)
 //   ignoreMoves  { [bookmarkId]: expiresAt }  moves we made ourselves (don't react to them)
 //   status       { error, paused }           last error shown in the UI; paused = stop calling the API
 
@@ -14,7 +16,9 @@ import { matchDomainRule } from './lib/urls.js';
 import {
   getNode,
   isWatchedParent,
+  categoryOfParent,
   listWatchedBookmarks,
+  listSortedBookmarks,
   ensureCategoryFolder,
 } from './lib/bookmarks.js';
 
@@ -109,13 +113,22 @@ async function handleMessage(msg) {
     case 'keep':
       await removeFromReview([msg.id]);
       return {};
-    case 'retry':
+    case 'retry': {
+      const { review = {} } = await chrome.storage.local.get('review');
+      const recheck = !!review[msg.id]?.from;
       await removeFromReview([msg.id]);
       await resume();
-      await enqueue([msg.id], 0);
+      await enqueue([msg.id], 0, { recheck });
       return {};
+    }
     case 'backlog':
       return { count: await queueBacklog() };
+    case 'recheck':
+      return { count: await queueRecheck(msg.folderId || null) };
+    case 'clearQueue':
+      await updateStored('queue', [], (queue) => queue.splice(0));
+      chrome.alarms.clear(DRAIN_ALARM);
+      return {};
     case 'resume':
     case 'settingsChanged':
       await resume();
@@ -137,6 +150,21 @@ async function queueBacklog() {
     .filter((id) => !review[id]); // already has a suggestion waiting
   await resume();
   await enqueue(ids, 0);
+  return ids.length;
+}
+
+// Classify bookmarks that were already sorted again (e.g. after editing the
+// categories or switching models). They only move if the model is confident
+// about a different category; unsure disagreements go to the review list.
+async function queueRecheck(folderId) {
+  const settings = await getSettings();
+  if (!settings.watchedFolderId) throw new Error('Pick a watched folder in settings first.');
+  const { review = {} } = await chrome.storage.local.get('review');
+  const ids = (await listSortedBookmarks(settings, folderId))
+    .map((n) => n.id)
+    .filter((id) => !review[id]);
+  await resume();
+  await enqueue(ids, 0, { recheck: true });
   return ids.length;
 }
 
@@ -200,22 +228,23 @@ async function worker() {
 async function processItem(item) {
   const settings = await getSettings();
   const bookmark = await getNode(item.id);
+  // For a recheck: the category folder it's in now. null for inbox items.
+  const current = item.recheck && bookmark ? await categoryOfParent(bookmark.parentId, settings) : null;
 
-  // Deleted, a folder, or moved out of the inbox while waiting: nothing to do.
-  if (!bookmark?.url || !(await isWatchedParent(bookmark.parentId, settings))) {
-    return removeFromQueue(item.id);
-  }
+  // Deleted, a folder, or moved somewhere else while waiting: nothing to do.
+  const inPlace = item.recheck ? !!current : await isWatchedParent(bookmark?.parentId, settings);
+  if (!bookmark?.url || !inPlace) return removeFromQueue(item.id);
 
   // Domain rule match: no fetch, no LLM call, just move it.
   const ruleCategory = matchDomainRule(bookmark.url, settings);
   if (ruleCategory) {
-    await moveToCategory(bookmark.id, ruleCategory, settings);
+    if (ruleCategory !== current) await moveToCategory(bookmark.id, ruleCategory, settings);
     await removeFromReview([bookmark.id]);
     return removeFromQueue(item.id);
   }
 
   // Title still empty? Give the browser a little more time to fill it in.
-  if (!bookmark.title && item.titleWaits < 2) {
+  if (!item.recheck && !bookmark.title && item.titleWaits < 2) {
     return requeue(item.id, TITLE_WAIT_MS, { titleWaits: item.titleWaits + 1 });
   }
 
@@ -236,17 +265,19 @@ async function processItem(item) {
       return requeue(item.id, 0);
     }
     // Gave up after retries: park it in the review list so it isn't lost.
-    await addToReview(bookmark, { error: err.message });
+    await addToReview(bookmark, { error: err.message, from: current });
     await setStatus({ error: err.message });
     return removeFromQueue(item.id);
   }
 
   await setStatus({ error: null });
-  if (result.confidence >= settings.confidenceThreshold) {
+  if (result.category === current) {
+    await removeFromReview([bookmark.id]); // recheck agrees with where it already is
+  } else if (result.confidence >= settings.confidenceThreshold) {
     await moveToCategory(bookmark.id, result.category, settings);
     await removeFromReview([bookmark.id]);
   } else {
-    await addToReview(bookmark, result);
+    await addToReview(bookmark, { ...result, from: current });
   }
   await removeFromQueue(item.id);
 }
@@ -320,12 +351,12 @@ async function updateStored(key, fallback, mutate) {
   });
 }
 
-async function enqueue(ids, delayMs) {
+async function enqueue(ids, delayMs, { recheck = false } = {}) {
   if (!ids.length) return;
   const notBefore = Date.now() + delayMs;
   await updateStored('queue', [], (queue) => {
     for (const id of ids) {
-      if (!queue.some((i) => i.id === id)) queue.push({ id, notBefore, inFlight: 0, titleWaits: 0 });
+      if (!queue.some((i) => i.id === id)) queue.push({ id, notBefore, inFlight: 0, titleWaits: 0, recheck });
     }
   });
   // Safety net in case the service worker is suspended before the timer fires.
@@ -359,7 +390,7 @@ async function removeFromQueue(id) {
   });
 }
 
-async function addToReview(bookmark, { category = null, confidence = null, reason = '', error = null }) {
+async function addToReview(bookmark, { category = null, confidence = null, reason = '', error = null, from = null }) {
   await updateStored('review', {}, (review) => {
     review[bookmark.id] = {
       id: bookmark.id,
@@ -369,6 +400,7 @@ async function addToReview(bookmark, { category = null, confidence = null, reaso
       confidence,
       reason,
       error,
+      from,
       at: Date.now(),
     };
   });

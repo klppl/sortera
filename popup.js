@@ -1,4 +1,8 @@
 import { getSettings, saveSettings } from './lib/settings.js';
+import { listCategoryFolders } from './lib/bookmarks.js';
+
+const CONFIRM_TIMEOUT_MS = 5000;
+let recheckArmed = null; // timer while the Recheck button waits for a confirming second click
 
 const $ = (id) => document.getElementById(id);
 
@@ -7,6 +11,9 @@ $('enabled').addEventListener('change', async () => {
   render();
 });
 $('backlog').addEventListener('click', onBacklog);
+$('recheck').addEventListener('click', onRecheck);
+$('recheckFolder').addEventListener('change', disarmRecheck);
+$('clearQueue').addEventListener('click', () => send({ type: 'clearQueue' }));
 $('resume').addEventListener('click', () => send({ type: 'resume' }));
 $('openOptions').addEventListener('click', (e) => {
   e.preventDefault();
@@ -33,6 +40,8 @@ async function render() {
   $('backlog').disabled = !settings.watchedFolderId;
 
   $('counts').textContent = `${queue.length} queued · ${items.length} need review`;
+  $('clearQueue').classList.toggle('hidden', !queue.length);
+  await renderRecheckFolders(settings);
   $('reviewHeading').classList.toggle('hidden', !items.length);
 
   const list = $('review');
@@ -62,6 +71,12 @@ function renderItem(item, categories) {
     meta.className = 'muted meta';
     meta.textContent = `Suggested: ${item.category} (${Math.round(item.confidence * 100)}%)${item.reason ? ` · ${item.reason}` : ''}`;
     el.append(meta);
+  }
+  if (item.from) {
+    const from = document.createElement('div');
+    from.className = 'muted meta';
+    from.textContent = `Now in: ${item.from}`;
+    el.append(from);
   }
 
   const controls = document.createElement('div');
@@ -102,6 +117,54 @@ async function onBacklog() {
       : 'Nothing new to classify in the watched folder.';
   }
   $('backlog').disabled = false;
+}
+
+async function renderRecheckFolders(settings) {
+  const select = $('recheckFolder');
+  const previous = select.value;
+  const folders = await listCategoryFolders(settings);
+  const total = folders.reduce((sum, f) => sum + f.count, 0);
+
+  select.innerHTML = '';
+  const add = (label, value, count) => {
+    const option = new Option(`${label} (${count})`, value);
+    option.dataset.count = count;
+    select.append(option);
+  };
+  add('All sorted folders', '', total);
+  for (const f of folders) add(f.category, f.id, f.count);
+  select.value = [...select.options].some((o) => o.value === previous) ? previous : '';
+  select.disabled = !folders.length;
+  if (!recheckArmed) $('recheck').disabled = !total;
+}
+
+// First click arms the button and shows how many LLM calls it will make;
+// a second click within a few seconds actually queues them.
+async function onRecheck() {
+  const option = $('recheckFolder').selectedOptions[0];
+  const count = Number(option?.dataset.count || 0);
+  if (!recheckArmed) {
+    $('recheck').textContent = `Confirm: ${count} bookmark${count === 1 ? '' : 's'}`;
+    $('recheck').classList.add('primary');
+    recheckArmed = setTimeout(disarmRecheck, CONFIRM_TIMEOUT_MS);
+    return;
+  }
+  disarmRecheck();
+  $('recheck').disabled = true;
+  const res = await send({ type: 'recheck', folderId: $('recheckFolder').value || null });
+  if (res?.ok) {
+    $('notice').textContent = res.count
+      ? `Queued ${res.count} bookmark${res.count === 1 ? '' : 's'} for a recheck.`
+      : 'Nothing to recheck (bookmarks waiting for review are skipped).';
+  }
+  $('recheck').disabled = false;
+}
+
+function disarmRecheck() {
+  clearTimeout(recheckArmed);
+  recheckArmed = null;
+  $('recheck').textContent = 'Recheck';
+  $('recheck').classList.remove('primary');
 }
 
 async function send(msg) {
