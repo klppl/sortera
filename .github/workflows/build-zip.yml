@@ -1,0 +1,55 @@
+# Builds the extension zip for manual installs and publishes it to the
+# "latest" release, always under the same name, so this link never changes:
+#   https://github.com/klppl/sortera/releases/download/latest/sortera-latest.zip
+# Run it by hand: Actions → "Build zip" → Run workflow.
+
+name: Build zip
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-zip
+  cancel-in-progress: false
+
+jobs:
+  zip:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ZIP: sortera-latest.zip
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the JavaScript parses
+        run: for f in background.js popup.js options.js lib/*.js; do node --check "$f"; done
+
+      # Everything sits inside a "sortera/" folder, so unzipping gives one
+      # folder to pick in "Load unpacked". Only runtime files go in.
+      - name: Build zip
+        run: |
+          mkdir -p build/sortera
+          cp -r manifest.json background.js popup.html popup.js options.html options.js styles.css LICENSE lib build/sortera/
+          mkdir -p build/sortera/icons && cp icons/*.png build/sortera/icons/
+          (cd build && zip -qr -X "../$ZIP" sortera)
+          unzip -l "$ZIP"
+
+      - name: Point the "latest" tag at this commit
+        run: |
+          git tag -f latest
+          git push -f origin latest
+
+      - name: Publish to the "latest" release
+        run: |
+          notes="Download **$ZIP**, unzip it, then open \`chrome://extensions\`, turn on Developer mode, click **Load unpacked** and pick the \`sortera\` folder. See the [README](https://github.com/${{ github.repository }}#install) for details.
+
+          Built from ${GITHUB_SHA::7} on $(date -u +%Y-%m-%d)."
+          if gh release view latest >/dev/null 2>&1; then
+            gh release edit latest --title "Sortera (latest)" --notes "$notes" --latest
+          else
+            gh release create latest --title "Sortera (latest)" --notes "$notes" --latest
+          fi
+          gh release upload latest "$ZIP" --clobber

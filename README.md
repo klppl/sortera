@@ -5,8 +5,8 @@
 <h1 align="center">Sortera</h1>
 
 <p align="center">
-  Drop a bookmark into an inbox folder. An AI model files it into the right category folder.<br>
-  Bring your own key: Anthropic, OpenAI, or a local model through Ollama.
+  <b>Your bookmark pile, sorted.</b><br>
+  Keep saving links to one folder. Sortera files each one where it belongs.
 </p>
 
 <p align="center">
@@ -15,10 +15,29 @@
   <img src="docs/settings.png" alt="Settings page: provider, inbox folder and categories" width="420">
 </p>
 
+## Why
+
+Saving a link "for later" takes one click. Getting back to it is the hard part. Mine all went into a
+"todo" folder, which grew into hundreds of recipes, articles, videos, shopping tabs and GitHub repos mixed
+together. Too long to scroll, so I stopped opening it.
+
+Sortera fixes the pile, not the habit. Keep bookmarking into one inbox folder like you already do. An AI
+model reads each new bookmark and moves it into a short, focused folder: `recipes`, `read later`,
+`watch later`, `shopping`, `dev & projects` and so on. When it's unsure, it asks you instead of guessing.
+Already have a backlog? One click sorts the whole folder.
+
+Bring your own key: Anthropic, OpenAI, or a free local model through Ollama. Sorting a thousand
+bookmarks costs about ten cents.
+
 ## Install
 
 **Chrome Web Store:** _link coming once the listing is approved_. Works in Chrome, Brave, Vivaldi, Edge
 and other Chromium browsers.
+
+**Manual install:** download [sortera-latest.zip](https://github.com/klppl/sortera/releases/download/latest/sortera-latest.zip)
+and unzip it. Open `chrome://extensions` (or `brave://extensions`, `vivaldi://extensions`), turn on
+**Developer mode**, click **Load unpacked** and pick the `sortera` folder. To update, download the zip
+again, replace the folder, and click reload ↻ on the extension card.
 
 Then, in the settings page that opens:
 
@@ -27,11 +46,9 @@ Then, in the settings page that opens:
 3. Click **Save**.
 
 <details>
-<summary>Install from source instead</summary>
+<summary>Install from source</summary>
 
-1. Download or clone this repo.
-2. Open `chrome://extensions` (or `brave://extensions`, `vivaldi://extensions`) and turn on **Developer mode**.
-3. Click **Load unpacked** and pick the folder that contains `manifest.json`.
+Clone this repo and use **Load unpacked** on the folder that contains `manifest.json`.
 
 </details>
 
@@ -66,7 +83,8 @@ Full details: [privacy policy](PRIVACY.md).
 
 You pay your provider directly. The settings page lists the cheapest models for each provider with
 their prices, and you can type in any other model id. With the defaults (`claude-haiku-5-5` and
-`gpt-6-luna`, both $0.10 / $0.50 per million tokens), sorting a thousand bookmarks costs well under a dollar.
+`gpt-6-luna`, both $0.10 / $0.50 per million tokens), a bookmark costs about $0.0001, so a thousand cost
+around ten cents.
 Domain-rule matches cost nothing.
 
 ## More
